@@ -1,11 +1,11 @@
 import { SafeAreaView, StyleSheet, Text, View, Image, TouchableOpacity, Pressable } from 'react-native'
-import React from 'react'
-import { Button, TextInput, useTheme } from 'react-native-paper'
+import React, { useState } from 'react'
+import { Button, HelperText, TextInput, useTheme } from 'react-native-paper'
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import RootStackParamList from '@/app/RootStackParamList';
 import GoogleLogin from '@/assets/icons/icons8-google.svg'
-
+import { LoginInput } from '@/models/LoginInput';
 
 
 interface AuthFormProps {
@@ -19,12 +19,58 @@ export default function AuthForm(props: AuthFormProps) {
   const { formType } = props;
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [username, setUsername] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [passwordVisible, setPasswordVisible] = React.useState(false); // State to toggle password visibility
+  const [name, setName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false); // State to toggle password visibility
+  const [loginInput, setLoginInput] = useState<LoginInput>({
+    name: '',
+    email: '',
+    password: '',
+  });
 
-  const handleGoogleLogin = () => {
-    console.log('Google login button pressed');
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
+
+  const validateInput = () => {
+    const newErrors = { name: '', email: '', password: '' };
+
+    // Validate name only for the "register" form
+    if (formType === 'register' && (!loginInput.name || loginInput.name.trim() === '')) {
+      newErrors.name = 'Name must be filled.';
+    }
+
+    // Validate email
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(loginInput.email)) {
+      newErrors.email = 'Email is not valid.';
+    }
+
+    // Validate password
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/; // At least 8 characters, one letter, and one number
+    if (!passwordRegex.test(loginInput.password)) {
+      newErrors.password = 'Password must be at least 8 characters long and contain at least one letter and one number.';
+    }
+
+    setErrors(newErrors);
+
+    // Return true if there are no errors
+    return Object.values(newErrors).every((error) => error === '');
+  };
+
+  const handleSubmit = () => {
+    if (validateInput()) {
+      if (formType === 'login') {
+        console.log('Logging in with:', loginInput);
+      } else {
+        console.log('Registering with:', loginInput);
+      }
+    } else {
+      console.log('Validation failed:', errors);
+    }
   };
 
   return (
@@ -43,23 +89,32 @@ export default function AuthForm(props: AuthFormProps) {
           style={styles.loginImage}
         />
         {formType === 'register' && (
-          <TextInput
-            label="Name"
-            value={username}
-            onChangeText={text => setUsername(text)}
-            style={styles.textInput}
-            mode="outlined"
-            outlineColor="blue"
-            activeOutlineColor="blue"
-            selectionColor="blue"
-            underlineColor="blue"
-            activeUnderlineColor="blue"
-          />
+          <>
+            <TextInput
+              label="Name"
+              value={loginInput.name}
+              onChangeText={(text) => setLoginInput({ ...loginInput, name: text })}
+              style={styles.textInput}
+              mode="outlined"
+              outlineColor="blue"
+              activeOutlineColor="blue"
+              selectionColor="blue"
+              underlineColor="blue"
+              activeUnderlineColor="blue"
+              error={!!errors.name} // Highlight input in red if there's an error
+            />
+            {!!errors.name && ( // Render HelperText only if there is an error
+              <HelperText style={styles.errorText} type="error" visible={!!errors.name}>
+                {errors.name}
+              </HelperText>
+            )}
+          </>
         )}
+
         <TextInput
           label="Email"
-          value={username}
-          onChangeText={text => setUsername(text)}
+          value={loginInput.email}
+          onChangeText={(text) => setLoginInput({ ...loginInput, email: text })}
           style={styles.textInput}
           mode="outlined"
           outlineColor="blue"
@@ -67,11 +122,18 @@ export default function AuthForm(props: AuthFormProps) {
           selectionColor="blue"
           underlineColor="blue"
           activeUnderlineColor="blue"
+          error={!!errors.email} // Highlight input in red if there's an error
         />
+        {!!errors.email && ( // Render HelperText only if there is an error
+          <HelperText style={styles.errorText} type="error" visible={!!errors.email}>
+            {errors.email}
+          </HelperText>
+        )}
+
         <TextInput
           label="Password"
-          value={password}
-          onChangeText={text => setPassword(text)}
+          value={loginInput.password}
+          onChangeText={(text) => setLoginInput({ ...loginInput, password: text })}
           secureTextEntry={!passwordVisible} // Toggle visibility
           style={styles.textInput}
           mode="outlined"
@@ -80,13 +142,19 @@ export default function AuthForm(props: AuthFormProps) {
           selectionColor="blue"
           underlineColor="blue"
           activeUnderlineColor="blue"
+          error={!!errors.password} // Highlight input in red if there's an error
           right={
             <TextInput.Icon
-              icon={passwordVisible ? 'eye' : 'eye-off'} // Use 'icon' instead of 'name'
-              onPress={() => setPasswordVisible(!passwordVisible)} // Toggle password visibility
+              icon={passwordVisible ? 'eye' : 'eye-off'}
+              onPress={() => setPasswordVisible(!passwordVisible)}
             />
           }
         />
+        {!!errors.password && ( // Render HelperText only if there is an error
+          <HelperText style={styles.errorText} type="error" visible={!!errors.password}>
+            {errors.password}
+          </HelperText>
+        )}
 
         {/* Password Reset Link */}
         {formType === 'login' && (
@@ -102,7 +170,7 @@ export default function AuthForm(props: AuthFormProps) {
           mode="contained"
           buttonColor="black"
           style={{ width: '80%', marginTop: 40, borderRadius: 5 }}
-          onPress={() => console.log(formType === 'login' ? 'Log in pressed' : 'Register pressed')}
+          onPress={handleSubmit}
         >
           {formType === 'login' ? 'Log In' : 'Sign Up'}
         </Button>
@@ -225,4 +293,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0', // Light gray color
     marginTop: 20, // Space above and below the line
   },
+  errorText: {
+    width: '80%',
+    textAlign: 'left',
+    fontSize: 12,
+    marginBottom: 0,
+  }
 })
